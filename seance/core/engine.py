@@ -24,6 +24,7 @@ from seance.fx.transitions import (
     summoning_animation,
 )
 from seance.fx.typewriter import typewriter_print, typewriter_stream, SLOW, DRAMATIC
+from seance.fx.voice import speak, stop_voice, voice_ready
 from seance.llm.ollama_client import OllamaClient
 from seance.llm.prompts import (
     SpiritPersona,
@@ -223,6 +224,19 @@ class SeanceEngine:
                     f"Options: chat, translate, teach, roast, history[/dim]"
                 )
 
+        elif command == "/voice":
+            if arg.lower() == "on":
+                ok, msg = voice_ready()
+                self.voice = ok
+                self.console.print(f"  [dim]{msg}[/dim]")
+            elif arg.lower() == "off":
+                self.voice = False
+                stop_voice()
+                self.console.print("  [dim]The spirits fall silent.[/dim]")
+            else:
+                state = "on" if self.voice else "off"
+                self.console.print(f"  [dim]Voice is {state}. Use /voice on or /voice off.[/dim]")
+
         else:
             self.console.print(
                 f"  [dim]Unknown command: {command}. Type [bold cyan]/help[/bold cyan] for options.[/dim]"
@@ -281,6 +295,8 @@ class SeanceEngine:
         # Store the greeting exchange in conversation history
         self.conversation.add_user_message(greeting_messages[0]["content"])
         self.conversation.add_assistant_message(full_response)
+        if self.voice:
+            speak(full_response, spirit.name)
 
         self.console.print()
 
@@ -294,6 +310,7 @@ class SeanceEngine:
             return
 
         spirit_name = self._current_spirit.name
+        stop_voice()
 
         if not silent:
             await glitch_burst(self.console, intensity=3)
@@ -341,6 +358,8 @@ class SeanceEngine:
 
             # Store response in history
             self.conversation.add_assistant_message(full_response)
+            if self.voice:
+                speak(full_response, spirit.name)
 
         except Exception as e:
             self.console.print(

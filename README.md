@@ -36,6 +36,7 @@ A terminal app where eight legacy languages come back as spirits with their own 
 | `/roast <code>` | Get your code critiqued by someone who was there first |
 | `/history` | Hear a real story from the language's past |
 | `/mode <name>` | Switch mode: `chat`, `translate`, `teach`, `roast`, `history` |
+| `/voice on` / `/voice off` | Toggle spoken replies (ElevenLabs) |
 | `/help` | Show all commands |
 | `/quit` | Leave the séance |
 
@@ -62,7 +63,7 @@ pip install -e .
 Or install the dependencies directly:
 
 ```bash
-pip install textual rich httpx pyyaml click
+pip install textual rich httpx pyyaml click pygame
 ```
 
 **3. Run it**
@@ -74,6 +75,26 @@ python -m seance
 ```
 
 Type `/summon cobol` to begin.
+
+## 🎙️ Voice (Optional)
+
+Each spirit can speak its replies aloud through the [ElevenLabs](https://elevenlabs.io) text-to-speech API, with a different voice per spirit: a stern voice for COBOL, a cheerful one for BASIC, and so on.
+
+Voice is **opt-in** and everything else still runs locally.
+
+1. Create an ElevenLabs account and an API key with **Text to Speech** access.
+2. Install the audio player:
+   ```bash
+   pip install pygame
+   ```
+3. Set your key, then run the app (Windows CMD shown):
+   ```bash
+   set ELEVENLABS_API_KEY=your_key_here
+   python -m seance
+   ```
+4. Inside the séance, type `/voice on`.
+
+Voices are configured in `seance/fx/voice.py`. Replace the voice IDs in the `VOICES` dictionary to give any spirit a new sound. Replies are trimmed to a short length and code blocks are skipped, so the free tier lasts longer. Audio plays in a background thread, so it never blocks the typewriter effect.
 
 ## How It Works
 
