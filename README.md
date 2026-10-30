@@ -55,7 +55,7 @@ ollama pull gemma3:4b
 **2. Clone and install**
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/cobol-seance.git
+git clone https://github.com/saimaaliya2005-cypher/cobol-seance.git
 cd cobol-seance
 pip install -e .
 ```
@@ -63,7 +63,7 @@ pip install -e .
 Or install the dependencies directly:
 
 ```bash
-pip install textual rich httpx pyyaml click pygame
+pip install textual rich httpx pyyaml click pygame sentry-sdk
 ```
 
 **3. Run it**
@@ -96,6 +96,34 @@ Voice is **opt-in** and everything else still runs locally.
 
 Voices are configured in `seance/fx/voice.py`. Replace the voice IDs in the `VOICES` dictionary to give any spirit a new sound. Replies are trimmed to a short length and code blocks are skipped, so the free tier lasts longer. Audio plays in a background thread, so it never blocks the typewriter effect.
 
+## 🔭 Tracing (Optional)
+
+The séance can report how each spirit performs to [Sentry](https://sentry.io) using agent tracing. Every reply is recorded as a trace with:
+
+- which spirit answered, and in which mode (chat, translate, teach, roast, history)
+- the model used
+- **time to first token**, which is the pause before the first word appears
+- model generation time, with typewriter delays excluded
+- an approximate token count (counted from streamed chunks)
+- any errors, such as Ollama not responding
+
+**Your messages and the spirit's replies are never sent**, only timings and counts.
+
+To turn it on:
+
+1. Create a free Sentry project (platform: Python, with Tracing enabled) and copy its DSN.
+2. Install the SDK:
+   ```bash
+   pip install sentry-sdk
+   ```
+3. Set the DSN before running the app (Windows CMD shown):
+   ```bash
+   set SENTRY_DSN=your_dsn_here
+   python -m seance
+   ```
+
+You'll see `Sentry tracing: on` at startup. If `SENTRY_DSN` isn't set, tracing does nothing and the app runs as normal.
+
 ## How It Works
 
 - **Persona system:** each spirit is a YAML file with personality, greeting, era context, code style and translation rules. Adding a new spirit means adding one YAML file, no code changes.
@@ -112,11 +140,21 @@ cobol-seance/
 ├── pyproject.toml
 └── seance/
     ├── __main__.py        # CLI entry point
-    ├── core/              # Engine and conversation manager
-    ├── llm/               # Ollama client and prompt builders
-    ├── spirits/           # Spirit YAML files and registry
-    ├── fx/                # Typewriter, glitch, transitions, ASCII art
-    └── assets/            # Banner
+    ├── core/
+    │   ├── engine.py          # Main séance loop and slash commands
+    │   ├── conversation.py    # Rolling chat history
+    │   └── tracing.py         # Optional Sentry agent tracing
+    ├── llm/
+    │   ├── ollama_client.py   # Streaming client for Ollama
+    │   └── prompts.py         # Persona and mode prompts
+    ├── spirits/               # Spirit YAML files and registry
+    ├── fx/
+    │   ├── typewriter.py      # Character-by-character reveal
+    │   ├── glitch.py          # Static and corruption effects
+    │   ├── transitions.py     # Summon and banish animations
+    │   ├── ascii_art.py       # Banner, help, UI text
+    │   └── voice.py           # Optional ElevenLabs voices
+    └── assets/                # Banner
 ```
 
 ## Known Limitations

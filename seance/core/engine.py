@@ -25,6 +25,7 @@ from seance.fx.transitions import (
 )
 from seance.fx.typewriter import typewriter_print, typewriter_stream, SLOW, DRAMATIC
 from seance.fx.voice import speak, stop_voice, voice_ready
+from seance.core.tracing import init_tracing, trace_chat, traced_stream, capture_error
 from seance.llm.ollama_client import OllamaClient
 from seance.llm.prompts import (
     SpiritPersona,
@@ -99,6 +100,8 @@ class SeanceEngine:
             return
 
         self.console.print(" [green]ready.[/green]")
+        if init_tracing():
+            self.console.print("  [dim]Sentry tracing: on[/dim]")
         self.console.print()
 
         # Show initial help
@@ -286,11 +289,12 @@ class SeanceEngine:
         )
 
         # Stream the greeting with typewriter effect
-        full_response = await typewriter_stream(
-            self.llm.stream_chat(system_prompt, greeting_messages),
-            self.console,
-            style="green",
-        )
+        with trace_chat(spirit.name, "greeting", self.model) as span:
+            full_response = await typewriter_stream(
+                traced_stream(self.llm.stream_chat(system_prompt, greeting_messages), span),
+                self.console,
+                style="green",
+            )
 
         # Store the greeting exchange in conversation history
         self.conversation.add_user_message(greeting_messages[0]["content"])
@@ -350,11 +354,12 @@ class SeanceEngine:
 
         # Stream response with typewriter effect
         try:
-            full_response = await typewriter_stream(
-                self.llm.stream_chat(system_prompt, messages),
-                self.console,
-                style="green",
-            )
+            with trace_chat(spirit.name, self._current_mode, self.model) as span:
+                full_response = await typewriter_stream(
+                    traced_stream(self.llm.stream_chat(system_prompt, messages), span),
+                    self.console,
+                    style="green",
+                )
 
             # Store response in history
             self.conversation.add_assistant_message(full_response)
@@ -362,6 +367,7 @@ class SeanceEngine:
                 speak(full_response, spirit.name)
 
         except Exception as e:
+            capture_error(e)
             self.console.print(
                 f"\n  [red]✖ The spirit's voice falters: {e}[/red]"
             )
