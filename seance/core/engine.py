@@ -25,7 +25,7 @@ from seance.fx.transitions import (
 )
 from seance.fx.typewriter import typewriter_print, typewriter_stream, SLOW, DRAMATIC
 from seance.fx.voice import speak, stop_voice, voice_ready
-from seance.core.tracing import init_tracing, trace_chat, traced_stream, capture_error
+from seance.core.tracing import init_tracing, trace_chat, traced_stream, capture_error, flush_tracing
 from seance.llm.ollama_client import OllamaClient
 from seance.llm.prompts import (
     SpiritPersona,
@@ -66,6 +66,8 @@ class SeanceEngine:
         except KeyboardInterrupt:
             self.console.print()
             print_goodbye(self.console)
+        finally:
+            flush_tracing()
 
     async def _run_async(self) -> None:
         """Main async event loop."""

@@ -11,7 +11,7 @@ from rich.text import Text
 
 
 # Delay ranges in seconds
-FAST = (0.01, 0.03)
+FAST = (0.005, 0.015)
 NORMAL = (0.025, 0.065)
 SLOW = (0.04, 0.10)
 DRAMATIC = (0.08, 0.18)
@@ -95,7 +95,7 @@ async def typewriter_stream(
             console.print(char, end="", style=style)
 
             if char in PAUSE_CHARS:
-                await asyncio.sleep(PAUSE_CHARS[char] * 0.5)  # Slightly faster for streaming
+                await asyncio.sleep(PAUSE_CHARS[char] * 0.2)  # Slightly faster for streaming
             else:
                 await asyncio.sleep(random.uniform(*speed))
 

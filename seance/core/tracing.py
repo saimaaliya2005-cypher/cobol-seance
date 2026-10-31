@@ -6,6 +6,8 @@ works exactly the same without Sentry.
 
 Only metadata is sent (spirit, mode, model, timings, counts). The text of
 your messages and the spirit's replies is never sent.
+
+Set SENTRY_DEBUG=1 to print Sentry's own log messages to the terminal.
 """
 
 from __future__ import annotations
@@ -23,6 +25,21 @@ except ImportError:  # sentry-sdk not installed
 _enabled = False
 
 
+def _start_root(op: str, name: str):
+    """Start a top-level trace.
+
+    On Sentry SDK 2.x a bare span with no parent is never sent, so the root
+    has to be a transaction. Newer SDKs treat the root span as the transaction.
+    """
+    start_transaction = getattr(sentry_sdk, "start_transaction", None)
+    if start_transaction is not None:
+        try:
+            return start_transaction(op=op, name=name)
+        except Exception:
+            pass
+    return sentry_sdk.start_span(op=op, name=name)
+
+
 def init_tracing() -> bool:
     """Start Sentry if SENTRY_DSN is set. Returns True when tracing is on."""
     global _enabled
@@ -34,10 +51,19 @@ def init_tracing() -> bool:
             dsn=dsn,
             traces_sample_rate=1.0,
             send_default_pii=False,
+            debug=os.environ.get("SENTRY_DEBUG") == "1",
         )
         _enabled = True
     except Exception:
         _enabled = False
+        return False
+
+    # One small trace at startup, so you can see right away that data arrives.
+    try:
+        with _start_root("seance.startup", "seance startup") as span:
+            _set(span, "seance.event", "startup")
+    except Exception:
+        pass
     return _enabled
 
 
@@ -58,14 +84,11 @@ def _set(span, key, value) -> None:
 
 @contextmanager
 def trace_chat(spirit_name: str, mode: str, model: str):
-    """Wrap one spirit reply in an agent-invocation span."""
+    """Wrap one spirit reply in an agent-invocation trace."""
     cm, span = None, None
     if _enabled:
         try:
-            cm = sentry_sdk.start_span(
-                op="gen_ai.invoke_agent",
-                name=f"invoke_agent {spirit_name}",
-            )
+            cm = _start_root("gen_ai.invoke_agent", f"invoke_agent {spirit_name}")
             span = cm.__enter__()
             _set(span, "gen_ai.agent.name", spirit_name)
             _set(span, "gen_ai.request.model", model)
@@ -134,5 +157,15 @@ def capture_error(exc: BaseException) -> None:
         return
     try:
         sentry_sdk.capture_exception(exc)
+    except Exception:
+        pass
+
+
+def flush_tracing() -> None:
+    """Send anything still queued. Call this just before the app exits."""
+    if not _enabled:
+        return
+    try:
+        sentry_sdk.flush(timeout=5)
     except Exception:
         pass
